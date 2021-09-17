@@ -10,6 +10,7 @@ typedef struct
 {
 	int socket;
 	struct addrinfo *ConnectNode;
+	struct sockaddr_storage server_addr;
 	buffer_t *readbuf; 
 	buffer_t *writebuf;
 } tftp_t;
@@ -30,6 +31,8 @@ int tftp_loop(int argc, char *argv[]);
 int tftp_connect(tftp_t *tftp_node, char *ipaddress, char* port);
 
 int tftp_close(tftp_t *node);
+
+int tftp_send_data(tftp_t *node, int fd, int block);
 
 int tftp_send_ack(tftp_t *node, uint16_t block);
 

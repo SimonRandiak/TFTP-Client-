@@ -172,6 +172,7 @@ void tftp_make_file_req(tftp_t *node, TFTP_MODES opcode, char *filename, char *m
 			sendto(node->socket, node->writebuf->data, len-1, 0, node->ConnectNode->ai_addr, node->ConnectNode->ai_addrlen);
 			break;
 		case TFTP_WRQ:
+			socklen_t their_addr_size = sizeof(node->server_addr);
 			node->writebuf->data[1] = TFTP_WRQ;
 
 		        strncpy(node->writebuf->data+2, filename, strlen(filename));
@@ -179,7 +180,7 @@ void tftp_make_file_req(tftp_t *node, TFTP_MODES opcode, char *filename, char *m
 
 			sendto(node->socket, node->writebuf->data, len-1, 0, node->ConnectNode->ai_addr, node->ConnectNode->ai_addrlen);
 
-			recvfrom(node->socket, node->readbuf->data, 4, 0, node->ConnectNode->ai_addr, &node->ConnectNode->ai_addrlen);
+			recvfrom(node->socket, node->readbuf->data, 4, 0, (struct sockaddr *) &node->server_addr, &their_addr_size);
 
 			if (node->readbuf->data[1] == TFTP_ACK)
 			{
@@ -232,7 +233,7 @@ int tftp_send_data(tftp_t *node, int fd, int block)
 	{
 
 		fprintf(stdout, "sendto: shut down\n");
-		return 0;
+		return -1;
 	}
 	return nread;
 }
@@ -265,6 +266,7 @@ int tftp_send_file(tftp_t *node, char *filename)
 	uint16_t block = 1;
 	int nwrite = 0;
 	int totalwrite = 0;
+	socklen_t sizes;
 
 	fd = open(filename, O_RDONLY);
 
@@ -277,15 +279,13 @@ int tftp_send_file(tftp_t *node, char *filename)
 
 	while(1)
 	{
+		sizes = sizeof(node->server_addr);
 		nwrite = tftp_send_data(node, fd, block);
 		if (nwrite < 0)
-		{
-			fprintf(stderr, "sendto: %s\n", strerror(errno));
 			return -1;
-		}
 		
 		totalwrite += nwrite - 4;
-		nwrite = recvfrom(node->socket, node->readbuf->data, 512, 0, node->ConnectNode->ai_addr, &node->ConnectNode->ai_addrlen);
+		nwrite = recvfrom(node->socket, node->readbuf->data, 512, 0, (struct sockaddr *) &node->server_addr, &sizes);
 		if (node->readbuf->data[1] == TFTP_ACK)
 		{
 
@@ -318,8 +318,9 @@ int tftp_recv_file(tftp_t *node, char *filename)
 	uint16_t block = 1;
 	int nread = 0;
 	int totalread = 0;
+	socklen_t their_addr_size;
 
-	fd = open(filename, O_WRONLY | O_CREAT);
+	fd = open(filename, O_WRONLY | O_CREAT, 0666);
 	if (fd == -1)
 	{
 		fprintf(stderr, "open: %s\n", strerror(errno));
@@ -328,7 +329,9 @@ int tftp_recv_file(tftp_t *node, char *filename)
 
 	while(1)
 	{
-		nread = recvfrom(node->socket, node->readbuf->data, 512, 0, node->ConnectNode->ai_addr, &node->ConnectNode->ai_addrlen);
+		their_addr_size = sizeof(node->server_addr);
+
+		nread = recvfrom(node->socket, node->readbuf->data, 512, 0, (struct sockaddr *) &node->server_addr, &their_addr_size);
 
 		if (nread == -1)
 		{
