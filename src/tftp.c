@@ -215,12 +215,7 @@ int tftp_send_data(tftp_t *node, int fd, int block)
 		fprintf(stderr, "sendto: %s\n", strerror(errno));
 		return -1;
 	}
-	else if (nread == 0)
-	{
 
-		fprintf(stdout, "read: eof\n");
-		return 0;
-	}
 	node->writebuf->current_size = nread + 4;
 
 	nread = sendto(node->socket, node->writebuf->data, node->writebuf->current_size, 0, node->ConnectNode->ai_addr, node->ConnectNode->ai_addrlen);
@@ -240,8 +235,6 @@ int tftp_send_data(tftp_t *node, int fd, int block)
 
 int tftp_send_ack(tftp_t *node, uint16_t block)
 {
-	if (node->writebuf->max_size < 4)
-		return -1;
 
 	buffer_clear(node->writebuf);
 	node->writebuf->data[1] = TFTP_ACK;
@@ -257,8 +250,6 @@ int tftp_send_ack(tftp_t *node, uint16_t block)
 
 int tftp_send_file(tftp_t *node, char *filename)
 {
-	if (node->writebuf->max_size < 516)
-		return -1;
 	int fd = -1;
 	
 	struct stat fileinfo;
