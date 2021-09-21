@@ -26,7 +26,7 @@ int buffer_release(buffer_t *buf)
 
 void buffer_clear(buffer_t *buf)
 {
-	memset(buf->data, 0, buf->max_size);
+	memset(buf->data, 0, buf->current_size);
 	buf->current_size = 0;
 
 }
