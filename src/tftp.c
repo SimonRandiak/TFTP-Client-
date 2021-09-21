@@ -212,7 +212,7 @@ int tftp_send_data(tftp_t *node, int fd, int block)
 		return -1;
 	}
 
-	udp_send_all_data(node->socket, node->writebuf->data, nread + 4, node->ConnectNode->ai_addr, node->ConnectNode->ai_addrlen);
+	udp_send_all_data(node->socket, node->writebuf->data, nread + 4, (struct sockaddr *) &node->server_addr, node->server_addr_size);
 }
 
 int tftp_send_ack(tftp_t *node, uint16_t block)
@@ -250,7 +250,6 @@ int tftp_send_file(tftp_t *node, char *filename)
 	}
 	fstat(fd, &fileinfo);
 
-	tftp_send_write_request(node, filename, tftp_transfer_modes[0]);
 	while(1)
 	{
 
@@ -290,7 +289,6 @@ int tftp_recv_file(tftp_t *node, char *filename)
 	int nread = 0;
 	int totalread = 0;
 
-	socklen_t server_addr_size;
 
 	fd = open(filename, O_WRONLY | O_CREAT, 0666);
 	if (fd == -1)
@@ -301,9 +299,7 @@ int tftp_recv_file(tftp_t *node, char *filename)
 
 	while(1)
 	{
-		server_addr_size = sizeof(node->server_addr);
-
-		nread = udp_recv_data(node->socket, node->readbuf->data, 516, (struct sockaddr *) &node->server_addr, &server_addr_size); 
+		nread = udp_recv_data(node->socket, node->readbuf->data, 516, (struct sockaddr *) &node->server_addr, &node->server_addr_size); 
 
 		if (node->readbuf->data[1] == TFTP_DATA)
 		{
