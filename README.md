@@ -10,9 +10,16 @@
 * Send and receive data
 * Open and close connection
 * Internet protocol independet
+* Time out (1 minute and 20 seconds)
+
 
 ## Todo
-* Better error handling
-* Check time outs
-* Set binary mode netascii, binary, mail
+* Connect from program itself
+* Choose transfer mode 
+
+## Todo (Not necessary)
+* Simple config file
+* Better optimization
+* Port for Windows
+
 
