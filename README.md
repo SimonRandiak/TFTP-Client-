@@ -1,9 +1,13 @@
 # TFTP
 
-## Build
+## How to build
 
 ```
 ./make
+```
+## How to run
+```
+./tftp <server> <port>
 ```
 
 ## Done
@@ -11,7 +15,7 @@
 * Open and close connection
 * Internet protocol independet
 * Time out (1 minute and 20 seconds)
-
+* Choose transfer mode
 
 ## Todo
 * Connect from program itself
@@ -21,5 +25,3 @@
 * Simple config file
 * Better optimization
 * Port for Windows
-
-
