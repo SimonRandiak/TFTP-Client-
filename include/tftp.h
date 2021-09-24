@@ -25,6 +25,12 @@ typedef enum
 	TFTP_ERROR = 5,
 } TFTP_MODES;
 
+typedef enum
+{
+	TFTP_NETASCII_MODE = 1,
+	TFTP_BINARY_MODE = 0,
+} TFTP_TRANSFER_TYPES;
+
 int tftp_init(tftp_t *node);
 
 int tftp_loop(int argc, char *argv[]);

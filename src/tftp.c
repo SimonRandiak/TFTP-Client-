@@ -17,12 +17,13 @@ const static char *tftp_commands[] =
 	"GET",
 	"QUIT",
 	"OPEN",
+	"BINARY",
+	"NETASCII",
 };
 
 const static char *tftp_transfer_modes[] = 
 {
 	"octet",
-	"mail",
 	"netascii",
 };
 
@@ -41,6 +42,7 @@ const static char *tftp_codes[] =
 int tftp_loop(int argc, char *argv[])
 {
 	tftp_t node;
+	TFTP_TRANSFER_TYPES tftp_transfer_mode = {0};
 	tftp_init(&node);
 	if (argc > 1)
 		tftp_connect(&node, argv[1], argv[2]);
@@ -57,14 +59,14 @@ int tftp_loop(int argc, char *argv[])
 			{
 				char *filename = buf->data+4;
 
-				tftp_send_write_request(&node, filename, tftp_transfer_modes[0]);
+				tftp_send_write_request(&node, filename, tftp_transfer_modes[tftp_transfer_mode]);
 				tftp_send_file(&node, filename);	
 			}
 			else if  ( strcasecmp(strtok(buf->data, " "), tftp_commands[1]) == 0)
 			{
 				char *filename = buf->data+4;
 				
-				tftp_send_read_request(&node, filename, tftp_transfer_modes[0]);
+				tftp_send_read_request(&node, filename, tftp_transfer_modes[tftp_transfer_mode]);
 				tftp_recv_file(&node, filename);
 			}
 			else if ( strcasecmp(strtok(buf->data, " "), tftp_commands[2]) == 0)
@@ -76,6 +78,11 @@ int tftp_loop(int argc, char *argv[])
 			{
 				fprintf(stderr, "tftp: not implemented\n");
 			}
+			else if ( strcasecmp(strtok(buf->data, " "), tftp_commands[4]) == 0)
+				tftp_transfer_mode = TFTP_BINARY_MODE;
+
+			else if ( strcasecmp(strtok(buf->data, " "), tftp_commands[5]) == 0)
+				tftp_transfer_mode = TFTP_NETASCII_MODE;
 			else
 			{
 				fprintf(stdout, "tftp: Invalid Command: %s\n", strtok(buf->data, " "));	
@@ -240,7 +247,7 @@ int tftp_send_ack(tftp_t *node, uint16_t block)
 
 	node->writebuf->current_size = 4;
 
-	if (!udp_send_all_data(node->socket, node->writebuf->data, 4, node->ConnectNode->ai_addr, node->ConnectNode->ai_addrlen))
+	if (!udp_send_all_data(node->socket, node->writebuf->data, 4, (struct sockaddr *) &node->server_addr, node->server_addr_size))
 		return -1;
 }
 
