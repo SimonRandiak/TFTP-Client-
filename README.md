@@ -19,9 +19,9 @@
 
 ## Todo
 * Connect from program itself
-* Choose transfer mode 
 
 ## Todo (Not necessary)
 * Simple config file
 * Better optimization
 * Port for Windows
+
