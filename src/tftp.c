@@ -76,7 +76,19 @@ int tftp_loop(int argc, char *argv[])
 			}
 			else if ( strcasecmp(strtok(buf->data, " "), tftp_commands[3]) == 0)
 			{
-				fprintf(stderr, "tftp: not implemented\n");
+				char *host = strtok(buf->data + 5, " ");
+				if (host == NULL)
+				{
+					fprintf(stderr, "Invalid host\n");
+					continue;
+				}
+				char *port = strtok(NULL, " ");
+				if (port == NULL)
+				{
+					tftp_connect(&node, host, "69");
+				}
+				else
+					tftp_connect(&node, host, port);
 			}
 			else if ( strcasecmp(strtok(buf->data, " "), tftp_commands[4]) == 0)
 				tftp_transfer_mode = TFTP_BINARY_MODE;

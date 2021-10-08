@@ -16,9 +16,7 @@
 * Internet protocol independet
 * Time out (1 minute and 20 seconds)
 * Choose transfer mode
-
-## Todo
-* Connect from program itself
+* Connecting from program itself
 
 ## Todo (Not necessary)
 * Simple config file
