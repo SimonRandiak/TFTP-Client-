@@ -19,6 +19,7 @@ const static char *tftp_commands[] =
 	"OPEN",
 	"BINARY",
 	"NETASCII",
+	"HELP",
 };
 
 const static char *tftp_transfer_modes[] = 
@@ -44,9 +45,14 @@ int tftp_loop(int argc, char *argv[])
 	tftp_t node;
 	TFTP_TRANSFER_TYPES tftp_transfer_mode = {0};
 	tftp_init(&node);
-	if (argc > 1)
+	if (argc > 2)
+	{
 		tftp_connect(&node, argv[1], argv[2]);
-
+	}
+	else if (argc == 2)
+	{
+		tftp_connect(&node, argv[1], "69");
+	}
 	buffer_t *buf = buffer_allocate(1024);	
 	while (1)
 	{
@@ -91,13 +97,27 @@ int tftp_loop(int argc, char *argv[])
 					tftp_connect(&node, host, port);
 			}
 			else if ( strcasecmp(strtok(buf->data, " "), tftp_commands[4]) == 0)
+			{
 				tftp_transfer_mode = TFTP_BINARY_MODE;
-
+			}
 			else if ( strcasecmp(strtok(buf->data, " "), tftp_commands[5]) == 0)
+			{
 				tftp_transfer_mode = TFTP_NETASCII_MODE;
+			}
+			else if ( strcasecmp(strtok(buf->data, " "), tftp_commands[6]) == 0)
+			{
+				fprintf(stdout, "\t\t\t\tput\t\t<file> send file to the server\n \
+				get\t\t<file> get file from the server\n \
+				quit\t\t<none> quit program\n \
+				open\t\t<host> port (optional) connect to server\n \
+				binary\t\t<none> set transfer mode to binary\n \
+				netascii\t<none> set transfer mode to netascii\n \
+				help\t\t<none> show help\n");
+			
+			}
 			else
 			{
-				fprintf(stdout, "tftp: Invalid Command: %s\n", strtok(buf->data, " "));	
+				fprintf(stderr, "tftp: Invalid Command: %s\n", strtok(buf->data, " "));	
 			}
 
 		}
@@ -359,6 +379,6 @@ int tftp_recv_file(tftp_t *node, char *filename)
 	}
 	close(fd);
 
-	printf("%d bytes has been written to %s\n", totalread, filename);
+	printf("%d bytes has been written to file: %s\n", totalread, filename);
 }
 
