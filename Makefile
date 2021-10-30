@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-ggdb -Wall
+CFLAGS=-ggdb -Wall -Wextra -pedantic
 
 tftp: main.o tftp.o buffer.o tools.o
 	$(CC) $(CFLAGS) main.o tftp.o buffer.o tools.o -o tftp 

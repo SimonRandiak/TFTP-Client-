@@ -79,7 +79,7 @@ int tftp_loop(int argc, char *argv[])
 				char *host = strtok(buf->data + 5, " ");
 				if (host == NULL)
 				{
-					fprintf(stderr, "Invalid host\n");
+					fprintf(stderr, "open hostname <port>\n");
 					continue;
 				}
 				char *port = strtok(NULL, " ");
