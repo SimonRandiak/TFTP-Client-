@@ -18,8 +18,3 @@
 * Choose transfer mode
 * Connecting from program itself
 
-## Todo (Not necessary)
-* Simple config file
-* Better optimization
-* Port for Windows
-
