@@ -1,9 +1,17 @@
 #ifndef TFTP_H
 #define TFTP_H
 
+#if defined _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#elif defined __linux__
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#endif
+
+#include <stdint.h>
+
 #include "../include/buffer.h"
 
 typedef struct

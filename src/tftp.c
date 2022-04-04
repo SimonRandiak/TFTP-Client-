@@ -1,16 +1,21 @@
 #include "../include/tftp.h"
 #include "../include/tools.h"
+#if defined _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#elif defined __linux__
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#endif
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 const static char *tftp_commands[] = 
 {
 	"PUT",
