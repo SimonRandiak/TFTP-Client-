@@ -47,9 +47,20 @@ const static char *tftp_codes[] =
 
 int tftp_loop(int argc, char *argv[])
 {
+#if defined _WIN32
+	WSADATA wsaData;
+
+	// Initialize Winsock
+	if (WSAStartup(MAKEWORD(2,2), &wsaData) != 0)
+	{
+	    printf("WSAStartup failed");
+	    return 1;
+	}
+#endif
 	tftp_t node;
 	TFTP_TRANSFER_TYPES tftp_transfer_mode = {0};
 	tftp_init(&node);
+
 	if (argc > 2)
 	{
 		tftp_connect(&node, argv[1], argv[2]);
@@ -146,60 +157,78 @@ int tftp_init(tftp_t *node)
 
 int tftp_connect(tftp_t *tftp_node, char *ipaddress, char* port)
 {
-       	struct addrinfo hints;
-    	struct addrinfo *result, *rp;
+    struct addrinfo hints;
+    struct addrinfo *result, *rp;
+#if defined _WIN32
+	const char timeout[] = "80000"; //miliseconds
+#elif defined __linux__
 	struct timeval timeout;
 	timeout.tv_sec = 80;
 	timeout.tv_usec = 0;
-    	int sfd, s;
+#endif
+    int sfd, s;
    
-    	memset(&hints, 0, sizeof(struct addrinfo));
-    	hints.ai_family = AF_UNSPEC;    
-    	hints.ai_socktype = SOCK_DGRAM; 
-    	hints.ai_flags = 0;
-    	hints.ai_protocol = 0;          
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;    
+    hints.ai_socktype = SOCK_DGRAM; 
+    hints.ai_flags = 0;
+    hints.ai_protocol = 0;          
 
-    	s = getaddrinfo(ipaddress, port, &hints, &result);
-    	if (s != 0)
-    	{
-        	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
-        	exit(EXIT_FAILURE);
-    	}
+   s = getaddrinfo(ipaddress, port, &hints, &result);
+   if (s != 0)
+   {
+      fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+      exit(EXIT_FAILURE);
+   }
 
-    	for (rp = result; rp != NULL; rp = rp->ai_next)
-    	{
-        	sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-        	if (sfd == -1)
-		{
-			close(sfd);
-			continue;
-		}
-		tftp_node->socket = sfd;
-		tftp_node->ConnectNode = rp;
-		break;
-	
-    	}
-
-    	if (rp == NULL)
-    	{               
-        	fprintf(stderr, "Could not connect\n");
-        	exit(EXIT_FAILURE);
-    	}
-
-   	if (setsockopt (sfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout) < 0)
+   for (rp = result; rp != NULL; rp = rp->ai_next)
+   {
+   sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+   if (sfd == -1)
 	{
-        	fprintf(stderr, "setsockopt: %s\n", strerror(errno));
+#if defined _WIN32
+		closesocket(sfd);
+#elif defined __linux__
+		close(sfd)
+#endif
+		continue;
+	}
+	tftp_node->socket = sfd;
+	tftp_node->ConnectNode = rp;
+	break;
+	}
+
+    if (rp == NULL)
+    {               
+       fprintf(stderr, "Could not connect\n");
+       exit(EXIT_FAILURE);
+    }
+#if defined _WIN32
+   	if (setsockopt (sfd, SOL_SOCKET, SO_RCVTIMEO, (const char*) timeout, sizeof timeout) < 0)
+	{
+        fprintf(stderr, "setsockopt: %s\n", strerror(errno));
 		exit(EXIT_FAILURE);	
 	}
+#elif defined __linux__
+  	if (setsockopt (sfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout) < 0)
+	{
+        fprintf(stderr, "setsockopt: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);	
+	}
+#endif
 	fprintf(stdout, "Connecting to %s:%s\n", ipaddress, port);
 }
 
 int tftp_close(tftp_t *node)
 {
+#if defined _WIN32
+	closesocket(node->socket);
+#elif defined __linux__
 	close(node->socket);
+#endif
 	node->socket = -1;
 
-        buffer_release(node->writebuf);
+    buffer_release(node->writebuf);
 	buffer_release(node->readbuf);
 
 	freeaddrinfo(node->ConnectNode);
@@ -249,7 +278,7 @@ int tftp_send_write_request(tftp_t *node, const char *filename, const char *mode
 
 
 }
-int tftp_send_data(tftp_t *node, int fd, int block)
+int tftp_send_data(tftp_t *node, FILE *fd, int block)
 {
 	int nread = -1;
 
@@ -260,11 +289,11 @@ int tftp_send_data(tftp_t *node, int fd, int block)
 
 	memcpy(&node->writebuf->data[2], &block, sizeof(uint16_t));
 
-	nread = read(fd, &node->writebuf->data[4], 512);
+	nread = fread(&node->writebuf->data[4], 1, 512, fd);
 	
 	if (nread < 0)
 	{
-		fprintf(stderr, "read: %s\n", strerror(errno));
+		fprintf(stderr, "fread: %s\n", strerror(errno));
 		return -1;
 	}
 
@@ -274,7 +303,6 @@ int tftp_send_data(tftp_t *node, int fd, int block)
 
 int tftp_send_ack(tftp_t *node, uint16_t block)
 {
-
 	buffer_clear(node->writebuf);
 	node->writebuf->data[1] = TFTP_ACK;
 
@@ -290,23 +318,22 @@ int tftp_send_ack(tftp_t *node, uint16_t block)
 
 int tftp_send_file(tftp_t *node, char *filename)
 {
+	FILE *fd = NULL;
 	
-	int fd = -1;
-	
-	struct stat fileinfo;
-
 	int nwrite = 0;
 	unsigned int totalread = 0;
 	uint16_t block = 1;
 
-	fd = open(filename, O_RDONLY);
+	fd = fopen(filename, "r");
 
-	if (fd == -1)
+	if (fd == NULL)
 	{
-		fprintf(stderr, "open: %s\n", strerror(errno));
+		fprintf(stderr, "fopen: %s\n", strerror(errno));
 		return -1;
 	}
-	fstat(fd, &fileinfo);
+	fseek(fd, 0L, SEEK_END);
+	int file_sz = ftell(fd);
+	fseek(fd, 0L, SEEK_CUR);
 
 	while(1)
 	{
@@ -333,25 +360,25 @@ int tftp_send_file(tftp_t *node, char *filename)
 			}
 			
 		}
-			if (totalread >= fileinfo.st_size)
+			if (totalread >= file_sz)
 				break;
 	}
-	close(fd);
+	fclose(fd);
 }
 
 int tftp_recv_file(tftp_t *node, char *filename)
 {
-	int fd = -1;
+	FILE *fd = NULL;
 
 	uint16_t block = 1;
 	int nread = 0;
 	int totalread = 0;
 
 
-	fd = open(filename, O_WRONLY | O_CREAT, 0666);
-	if (fd == -1)
+	fd = fopen(filename, "w");
+	if (fd == NULL)
 	{
-		fprintf(stderr, "open: %s\n", strerror(errno));
+		fprintf(stderr, "fopen: %s\n", strerror(errno));
 		return -1;
 	}
 
@@ -375,14 +402,14 @@ int tftp_recv_file(tftp_t *node, char *filename)
 			
 		}
 
-		write(fd, &node->readbuf->data[4], nread - 4);
+		fwrite(&node->readbuf->data[4], 1, nread - 4, fd);
 		totalread += nread;
 
 		if ((nread - 4) < 512)
 			break;
 
 	}
-	close(fd);
+	fclose(fd);
 
 	printf("%d bytes has been written to file: %s\n", totalread, filename);
 }

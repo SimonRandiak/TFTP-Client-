@@ -11,6 +11,7 @@
 #endif
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include "../include/buffer.h"
 
@@ -51,7 +52,7 @@ int tftp_send_read_request(tftp_t *node, const char *filename, const char *mode)
 
 int tftp_send_write_request(tftp_t *node, const char *filename, const char *mode);
 
-int tftp_send_data(tftp_t *node, int fd, int block);
+int tftp_send_data(tftp_t *node, FILE *fd, int block);
 
 int tftp_send_ack(tftp_t *node, uint16_t block);
 

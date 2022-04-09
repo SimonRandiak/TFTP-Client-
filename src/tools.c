@@ -12,6 +12,7 @@ int udp_send_data(int socket, const void *data, const size_t data_len, struct so
 	if (nwrite < 0)
 	{
 		fprintf(stderr, "sendto: %s\n", strerror(errno));
+		fprintf(stderr, "sendto: %d\n", WSAGetLastError());
 	}
 	return nwrite;
 }

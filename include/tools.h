@@ -2,6 +2,7 @@
 #define TOOLS_H
 #if defined _WIN32
 #include <winsock2.h>
+#include <ws2tcpip.h>
 #elif defined __linux__
 #include <errno.h>
 #include <sys/types.h>
