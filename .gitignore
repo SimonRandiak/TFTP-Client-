@@ -4,3 +4,5 @@
 *.txt
 #ignore all .exe files
 *.exe
+#ignore vscode config files
+.vscode/*

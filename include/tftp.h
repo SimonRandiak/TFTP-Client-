@@ -15,16 +15,6 @@
 
 #include "../include/buffer.h"
 
-typedef struct
-{
-	int socket;
-	struct addrinfo *ConnectNode;
-	struct sockaddr_storage server_addr;
-	socklen_t server_addr_size;
-	buffer_t *readbuf; 
-	buffer_t *writebuf;
-} tftp_t;
-
 typedef enum 
 {
 	TFTP_RRQ = 1,
@@ -39,6 +29,26 @@ typedef enum
 	TFTP_NETASCII_MODE = 1,
 	TFTP_BINARY_MODE = 0,
 } TFTP_TRANSFER_TYPES;
+
+typedef enum
+{
+	TFTP_DISCONNECTED = 0,
+	TFTP_CONNECTED = 1,
+} TFTP_STATE;
+
+typedef struct
+{
+	TFTP_STATE state;
+	int socket;
+	struct addrinfo *ConnectNode;
+	struct sockaddr_storage server_addr;
+	socklen_t server_addr_size;
+	buffer_t *readbuf; 
+	buffer_t *writebuf;
+	char ip[262];
+	char port[7];
+} tftp_t;
+
 
 int tftp_init(tftp_t *node);
 

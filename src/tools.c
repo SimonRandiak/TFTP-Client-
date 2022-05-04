@@ -11,8 +11,11 @@ int udp_send_data(int socket, const void *data, const size_t data_len, struct so
 	int nwrite = sendto(socket, data, data_len, 0, to_addr, to_addr_size);
 	if (nwrite < 0)
 	{
-		fprintf(stderr, "sendto: %s\n", strerror(errno));
+#if defined _WIN32
 		fprintf(stderr, "sendto: %d\n", WSAGetLastError());
+#elif defined __linux__
+		fprintf(stderr, "sendto: %s\n", strerror(errno));
+#endif
 	}
 	return nwrite;
 }
@@ -23,7 +26,12 @@ int udp_recv_data(int socket, void *data, const size_t data_len, struct sockaddr
 	int nread = recvfrom(socket, data, data_len, 0, to_addr, to_addr_size);
 	if (nread < 0)
 	{
-		fprintf(stderr, "recvfrom: %s\n", strerror(errno));
+#if defined _WIN32
+			fprintf(stderr, "recvfrom: %d\n", WSAGetLastError());
+#elif defined __linux__
+			fprintf(stderr, "recvfrom: %s\n", strerror(errno));
+#endif
+		return -1; 
 	}
 	return nread;
 }
@@ -38,7 +46,11 @@ int udp_recv_all_data(int socket, void *data, const size_t data_len, struct sock
 		nread = recvfrom(socket, data, data_len, 0, to_addr, to_addr_size);
 		if (nread < 0)
 		{
+#if defined _WIN32
+			fprintf(stderr, "recvfrom: %d\n", WSAGetLastError());
+#elif defined __linux__
 			fprintf(stderr, "recvfrom: %s\n", strerror(errno));
+#endif
 			return -1;
 		}
 		totalread += nread;
@@ -57,7 +69,11 @@ int udp_send_all_data(int socket, const void *data, const size_t data_len, struc
 		nread = sendto(socket, data, data_len, 0, to_addr, to_addr_size);
 		if (nread < 0)
 		{
-			fprintf(stderr, "sendto: %s\n", strerror(errno));
+#if defined _WIN32
+		fprintf(stderr, "sendto: %d\n", WSAGetLastError());
+#elif defined __linux__
+		fprintf(stderr, "sendto: %s\n", strerror(errno));
+#endif
 			return -1;
 		}
 		totalread += nread;
