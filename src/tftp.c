@@ -28,12 +28,6 @@ const static char *tftp_commands[] =
 	"HELP",
 };
 
-const static char *tftp_transfer_modes[] = 
-{
-	"octet",
-	"netascii",
-};
-
 const static char *tftp_codes[] = 
 {
    "Not defined, see error message (if any).",
@@ -50,7 +44,6 @@ int tftp_loop(int argc, char *argv[])
 {
 
 	tftp_t node;
-	TFTP_TRANSFER_TYPES tftp_transfer_mode = {0};
 	tftp_init(&node);
 
 	if (argc > 2)
@@ -74,25 +67,21 @@ int tftp_loop(int argc, char *argv[])
 		{
 			if ( strcasecmp(strtok(buf->data, " "), tftp_commands[0]) == 0)
 			{
-				if (node.state == TFTP_DISCONNECTED)
+				if (node.connection_state == TFTP_DISCONNECTED)
 					continue;
 				else
 					tftp_connect(&node, node.ip, node.port);
 				char *filename = buf->data+4;
-				if (!tftp_send_write_request(&node, filename, tftp_transfer_modes[tftp_transfer_mode]))
-					continue;
 				tftp_send_file(&node, filename);	
 			}
 			else if  ( strcasecmp(strtok(buf->data, " "), tftp_commands[1]) == 0)
 			{
-				if (node.state == TFTP_DISCONNECTED)
+				if (node.connection_state == TFTP_DISCONNECTED)
 					continue;
 				else
 					tftp_connect(&node, node.ip, node.port);
 				char *filename = buf->data+4;
 				
-				if (!tftp_send_read_request(&node, filename, tftp_transfer_modes[tftp_transfer_mode]))
-					continue;
 				tftp_recv_file(&node, filename);
 			}
 			else if ( strcasecmp(strtok(buf->data, " "), tftp_commands[2]) == 0)
@@ -121,11 +110,11 @@ int tftp_loop(int argc, char *argv[])
 			}
 			else if ( strcasecmp(strtok(buf->data, " "), tftp_commands[4]) == 0)
 			{
-				tftp_transfer_mode = TFTP_BINARY_MODE;
+				node.transfer_mode = TFTP_BINARY_MODE;
 			}
 			else if ( strcasecmp(strtok(buf->data, " "), tftp_commands[5]) == 0)
 			{
-				tftp_transfer_mode = TFTP_NETASCII_MODE;
+				node.transfer_mode = TFTP_NETASCII_MODE;
 			}
 			else if ( strcasecmp(strtok(buf->data, " "), tftp_commands[6]) == 0)
 			{
@@ -159,7 +148,7 @@ int tftp_init(tftp_t *node)
 	// Initialize Winsock
 	if (WSAStartup(MAKEWORD(2,2), &wsaData) != 0)
 	{
-	    printf("WSAStartup failed");
+	    puts("WSAStartup failed");
 	    return 1;
 	}
 #endif
@@ -171,7 +160,8 @@ int tftp_init(tftp_t *node)
 	node->socket = -1;
 	memset(node->ip, 0, 262);
 	memset(node->port, 0, 7);
-	node->state = TFTP_DISCONNECTED;
+	node->connection_state = TFTP_DISCONNECTED;
+	node->transfer_mode = TFTP_BINARY_MODE;
 }
 
 int tftp_connect(tftp_t *tftp_node, char *ipaddress, char* port)
@@ -213,26 +203,26 @@ int tftp_connect(tftp_t *tftp_node, char *ipaddress, char* port)
 		}
 		tftp_node->socket = sfd;
 		tftp_node->ConnectNode = rp;
-		tftp_node->state = TFTP_CONNECTED;
+		tftp_node->connection_state = TFTP_CONNECTED;
 		break;
 	}
 
 	if (rp == NULL)
     {               
 		fprintf(stderr, "Could not connect\n");
-       	exit(EXIT_FAILURE);
+		return -1;
     }
 #if defined _WIN32
 	if (setsockopt (sfd, SOL_SOCKET, SO_RCVTIMEO, (const char*) &timeout, sizeof timeout) == SOCKET_ERROR)
 	{
         fprintf(stderr, "setsockopt: %d\n", WSAGetLastError());
-		exit(EXIT_FAILURE);	
+		return -1;
 	}
 #elif defined __linux__
   	if (setsockopt (sfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout) < 0)
 	{
         fprintf(stderr, "setsockopt: %s\n", strerror(errno));
-		exit(EXIT_FAILURE);	
+		return -1;
 	}
 #endif
 }
@@ -250,12 +240,25 @@ int tftp_close(tftp_t *node)
 	buffer_release(node->readbuf);
 
 	freeaddrinfo(node->ConnectNode);
-	node->state = TFTP_DISCONNECTED;
+	node->connection_state = TFTP_DISCONNECTED;
 	return 1;
 }
 
-int tftp_send_read_request(tftp_t *node, const char *filename, const char *mode)
+static int tftp_send_read_request(tftp_t *node, const char *filename)
 {
+	const char *mode = NULL;
+	switch (node->transfer_mode)
+	{
+		case TFTP_BINARY_MODE:
+			mode = "octet";
+			break;
+		case TFTP_NETASCII_MODE:
+			mode = "netascii";
+			break;
+		default:
+			fprintf(stderr, "tftp: unsuported transfer mode\n");
+			return -1;
+	}
 	size_t packet_len = strlen(filename) + strlen(mode) + 4;
 
 	memset(node->writebuf->data,0, packet_len);
@@ -271,8 +274,22 @@ int tftp_send_read_request(tftp_t *node, const char *filename, const char *mode)
 	return 1;
 }
 
-int tftp_send_write_request(tftp_t *node, const char *filename, const char *mode)
+static int tftp_send_write_request(tftp_t *node, const char *filename)
 {
+	const char *mode = NULL;
+	switch (node->transfer_mode)
+	{
+		case TFTP_BINARY_MODE:
+			mode = "octet";
+			break;
+		case TFTP_NETASCII_MODE:
+			mode = "netascii";
+			break;
+		default:
+			fprintf(stderr, "tftp: unsuported transfer mode\n");
+			return -1;
+	}
+
 	size_t packet_len = strlen(filename) + strlen(mode) + 4;
 
 	memset(node->writebuf->data,0, packet_len);
@@ -297,7 +314,7 @@ int tftp_send_write_request(tftp_t *node, const char *filename, const char *mode
 
 
 }
-int tftp_send_data(tftp_t *node, FILE *fd, int block)
+static int tftp_send_data(tftp_t *node, FILE *fd, int block)
 {
 	int nread = -1;
 
@@ -323,7 +340,7 @@ int tftp_send_data(tftp_t *node, FILE *fd, int block)
 	return nread;
 }
 
-int tftp_send_ack(tftp_t *node, uint16_t block)
+static int tftp_send_ack(tftp_t *node, uint16_t block)
 {
 	buffer_clear(node->writebuf);
 	node->writebuf->data[1] = TFTP_ACK;
@@ -357,6 +374,11 @@ int tftp_send_file(tftp_t *node, char *filename)
 	fseek(fd, 0, SEEK_END);
 	int file_sz = ftell(fd);
 	fseek(fd, 0, SEEK_SET);
+
+	if (!tftp_send_write_request(node, filename))
+	{
+		return -1;
+	}
 
 	while(1)
 	{
@@ -408,6 +430,9 @@ int tftp_recv_file(tftp_t *node, char *filename)
 		perror("fopen:");
 		return -1;
 	}
+
+	if (!tftp_send_read_request(node, filename))
+		return -1;
 
 	while(1)
 	{

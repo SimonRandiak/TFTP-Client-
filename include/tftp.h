@@ -28,17 +28,17 @@ typedef enum
 {
 	TFTP_NETASCII_MODE = 1,
 	TFTP_BINARY_MODE = 0,
-} TFTP_TRANSFER_TYPES;
+} TFTP_TRANSFER_MODES;
 
 typedef enum
 {
 	TFTP_DISCONNECTED = 0,
 	TFTP_CONNECTED = 1,
-} TFTP_STATE;
+} TFTP_CONNECT_STATE;
 
 typedef struct
 {
-	TFTP_STATE state;
+	TFTP_CONNECT_STATE connection_state;
 	int socket;
 	struct addrinfo *ConnectNode;
 	struct sockaddr_storage server_addr;
@@ -47,6 +47,7 @@ typedef struct
 	buffer_t *writebuf;
 	char ip[262];
 	char port[7];
+	TFTP_TRANSFER_MODES transfer_mode;
 } tftp_t;
 
 
@@ -58,13 +59,13 @@ int tftp_connect(tftp_t *tftp_node, char *ipaddress, char* port);
 
 int tftp_close(tftp_t *node);
 
-int tftp_send_read_request(tftp_t *node, const char *filename, const char *mode);
+static int tftp_send_read_request(tftp_t *node, const char *filename);
 
-int tftp_send_write_request(tftp_t *node, const char *filename, const char *mode);
+static int tftp_send_write_request(tftp_t *node, const char *filename);
 
-int tftp_send_data(tftp_t *node, FILE *fd, int block);
+static int tftp_send_data(tftp_t *node, FILE *fd, int block);
 
-int tftp_send_ack(tftp_t *node, uint16_t block);
+static int tftp_send_ack(tftp_t *node, uint16_t block);
 
 int tftp_send_file(tftp_t *node, char *filename);
 
