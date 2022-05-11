@@ -17,4 +17,4 @@
 * Time out (1 minute and 20 seconds)
 * Choose transfer mode
 * Connecting from program itself
-
+* Windows and linuc compatible
