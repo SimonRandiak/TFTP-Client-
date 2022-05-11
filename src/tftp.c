@@ -455,7 +455,7 @@ int tftp_recv_file(tftp_t *node, char *filename)
 		}
 
 		fwrite(&node->readbuf->data[4], 1, nread - 4, fd);
-		totalread += nread;
+		totalread += nread - 4;
 
 		if ((nread - 4) < 512)
 			break;
