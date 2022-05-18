@@ -6,3 +6,5 @@
 *.exe
 #ignore vscode config files
 .vscode/*
+#ignore all windows scripts files
+*.bat

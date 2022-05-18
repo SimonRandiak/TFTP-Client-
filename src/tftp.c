@@ -46,7 +46,7 @@ int tftp_loop(int argc, char *argv[])
 	tftp_t node;
 	tftp_init(&node);
 
-	if (argc > 2)
+	if (argc == 3)
 	{
 		strncpy(node.ip, argv[1], 261);
 		strncpy(node.port, argv[2], 6);
@@ -55,6 +55,7 @@ int tftp_loop(int argc, char *argv[])
 	else if (argc == 2)
 	{
 		strncpy(node.ip, argv[1], 261);
+		strncpy(node.port, "69", 6);
 		tftp_connect(&node, argv[1], "69");
 	}
 	buffer_t *buf = buffer_allocate(1024);	
@@ -136,7 +137,7 @@ int tftp_loop(int argc, char *argv[])
 	}
 	buffer_release(buf);
 	tftp_close(&node);
-	return 0;
+	return 1;
 	
 }
 
@@ -149,7 +150,7 @@ int tftp_init(tftp_t *node)
 	if (WSAStartup(MAKEWORD(2,2), &wsaData) != 0)
 	{
 	    puts("WSAStartup failed");
-	    return 1;
+	    return 0;
 	}
 #endif
 
@@ -210,19 +211,19 @@ int tftp_connect(tftp_t *tftp_node, char *ipaddress, char* port)
 	if (rp == NULL)
     {               
 		fprintf(stderr, "Could not connect\n");
-		return -1;
+		return 0;
     }
 #if defined _WIN32
 	if (setsockopt (sfd, SOL_SOCKET, SO_RCVTIMEO, (const char*) &timeout, sizeof timeout) == SOCKET_ERROR)
 	{
         fprintf(stderr, "setsockopt: %d\n", WSAGetLastError());
-		return -1;
+		return 0;
 	}
 #elif defined __linux__
   	if (setsockopt (sfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout) < 0)
 	{
         fprintf(stderr, "setsockopt: %s\n", strerror(errno));
-		return -1;
+		return 0;
 	}
 #endif
 }
@@ -257,7 +258,7 @@ static int tftp_send_read_request(tftp_t *node, const char *filename)
 			break;
 		default:
 			fprintf(stderr, "tftp: unsuported transfer mode\n");
-			return -1;
+			return 0;
 	}
 	size_t packet_len = strlen(filename) + strlen(mode) + 4;
 
@@ -270,7 +271,7 @@ static int tftp_send_read_request(tftp_t *node, const char *filename)
 	memcpy(node->writebuf->data + 3 + strlen(filename), mode, strlen(mode));
 
 	if (!udp_send_all_data(node->socket, node->writebuf->data, packet_len, node->ConnectNode->ai_addr, node->ConnectNode->ai_addrlen))
-			return -1;
+			return 0;
 	return 1;
 }
 
@@ -287,7 +288,7 @@ static int tftp_send_write_request(tftp_t *node, const char *filename)
 			break;
 		default:
 			fprintf(stderr, "tftp: unsuported transfer mode\n");
-			return -1;
+			return 0;
 	}
 
 	size_t packet_len = strlen(filename) + strlen(mode) + 4;
@@ -301,16 +302,24 @@ static int tftp_send_write_request(tftp_t *node, const char *filename)
 	memcpy(node->writebuf->data + 3 + strlen(filename), mode, strlen(mode));
 
 	if(!udp_send_all_data(node->socket, node->writebuf->data, packet_len, node->ConnectNode->ai_addr, node->ConnectNode->ai_addrlen))
-		return -1;
+		return 0;
 
 	if(!udp_recv_data(node->socket, node->readbuf->data, node->readbuf->max_size, (struct sockaddr *) &node->server_addr, &node->server_addr_size))
-		return -1;
+		return 0;
 
 	if ((uint8_t) node->readbuf->data[1] == TFTP_ACK)
 	{
 		return 1;
 	}
-	return -1;
+	else if (node->readbuf->data[1] == TFTP_ERROR)
+	{
+		uint16_t error_code = *(uint16_t *)&node->readbuf->data[2];
+		const char *error_message = &node->readbuf->data[4];
+		fprintf(stderr, "error: code %u %s\n", ntohs(error_code), error_message);
+		return 0;
+	}
+
+	return 0;
 
 
 }
@@ -330,12 +339,12 @@ static int tftp_send_data(tftp_t *node, FILE *fd, int block)
 	if (nread < 0)
 	{
 		perror("fread:");
-		return -1;
+		return 0;
 	}
 
 	if (!udp_send_all_data(node->socket, node->writebuf->data, nread + 4, (struct sockaddr *) &node->server_addr, node->server_addr_size))
 	{
-		return -1;
+		return 0;
 	}	
 	return nread;
 }
@@ -352,7 +361,7 @@ static int tftp_send_ack(tftp_t *node, uint16_t block)
 	node->writebuf->current_size = 4;
 
 	if (!udp_send_all_data(node->socket, node->writebuf->data, 4, (struct sockaddr *) &node->server_addr, node->server_addr_size))
-		return -1;
+		return 0;
 }
 
 int tftp_send_file(tftp_t *node, char *filename)
@@ -368,7 +377,7 @@ int tftp_send_file(tftp_t *node, char *filename)
 	if (fd == NULL)
 	{
 		perror("fopen:");
-		return -1;
+		return 0;
 	}
 
 	fseek(fd, 0, SEEK_END);
@@ -377,7 +386,7 @@ int tftp_send_file(tftp_t *node, char *filename)
 
 	if (!tftp_send_write_request(node, filename))
 	{
-		return -1;
+		return 0;
 	}
 
 	while(1)
@@ -385,18 +394,18 @@ int tftp_send_file(tftp_t *node, char *filename)
 
 		nwrite = tftp_send_data(node, fd, block);
 		if (nwrite == -1)
-			return -1;
+			return 0;
 		totalread += nwrite;
 		
-		nwrite = udp_recv_data(node->socket, node->writebuf->data, node->writebuf->max_size, (struct sockaddr *) &node->server_addr, &node->server_addr_size);	
+		nwrite = udp_recv_data(node->socket, node->readbuf->data, node->readbuf->max_size, (struct sockaddr *) &node->server_addr, &node->server_addr_size);	
 		if (nwrite == -1)
 		{
-			return -1;
+			return 0;
 		}
 		if (node->readbuf->data[1] == TFTP_ACK)
 		{
 
-			uint16_t recvblock = *(uint16_t *)&node->writebuf->data[2];
+			uint16_t recvblock = *(uint16_t *)&node->readbuf->data[2];
 			if (ntohs(recvblock) == block)
 			{
 				block++;
@@ -407,6 +416,13 @@ int tftp_send_file(tftp_t *node, char *filename)
 				
 			}
 			
+		}
+		else if (node->readbuf->data[1] == TFTP_ERROR)
+		{
+			uint16_t error_code = *(uint16_t *)&node->readbuf->data[2];
+			const char *error_message = &node->readbuf->data[4];
+			fprintf(stderr, "error: code %u %s\n", ntohs(error_code), error_message);
+			return 0;
 		}
 			if (totalread >= file_sz)
 				break;
@@ -428,11 +444,11 @@ int tftp_recv_file(tftp_t *node, char *filename)
 	if (fd == NULL)
 	{
 		perror("fopen:");
-		return -1;
+		return 0;
 	}
 
 	if (!tftp_send_read_request(node, filename))
-		return -1;
+		return 0;
 
 	while(1)
 	{
@@ -452,6 +468,13 @@ int tftp_recv_file(tftp_t *node, char *filename)
 				continue;
 			}
 			
+		}
+		else if (node->readbuf->data[1] == TFTP_ERROR)
+		{
+			uint16_t error_code = *(uint16_t *)&node->readbuf->data[2];
+			const char *error_message = &node->readbuf->data[4];
+			fprintf(stderr, "error: code %u %s\n", ntohs(error_code), error_message);
+			return 0;
 		}
 
 		fwrite(&node->readbuf->data[4], 1, nread - 4, fd);

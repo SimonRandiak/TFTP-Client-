@@ -19,9 +19,9 @@ int buffer_release(buffer_t *buf)
 	{
 		free(buf->data);
 		free(buf);
-		return 0;
+		return 1;
 	}
-		return -1;
+		return 0;
 }
 
 void buffer_clear(buffer_t *buf)

@@ -31,7 +31,7 @@ int udp_recv_data(int socket, void *data, const size_t data_len, struct sockaddr
 #elif defined __linux__
 			fprintf(stderr, "recvfrom: %s\n", strerror(errno));
 #endif
-		return -1; 
+		return 0; 
 	}
 	return nread;
 }
@@ -51,7 +51,7 @@ int udp_recv_all_data(int socket, void *data, const size_t data_len, struct sock
 #elif defined __linux__
 			fprintf(stderr, "recvfrom: %s\n", strerror(errno));
 #endif
-			return -1;
+			return 0;
 		}
 		totalread += nread;
 	}
@@ -74,7 +74,7 @@ int udp_send_all_data(int socket, const void *data, const size_t data_len, struc
 #elif defined __linux__
 		fprintf(stderr, "sendto: %s\n", strerror(errno));
 #endif
-			return -1;
+			return 0;
 		}
 		totalread += nread;
 	}
