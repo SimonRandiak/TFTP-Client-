@@ -1,5 +1,5 @@
 # TFTP
-
+Simple TFTP client implementatiion in C language 
 ## How to build
 
 ```
@@ -17,4 +17,4 @@
 * Time out (1 minute and 20 seconds)
 * Choose transfer mode
 * Connecting from program itself
-* Windows and linuc compatible
+* Windows and linux compatible tested on WSL and Windows 11
